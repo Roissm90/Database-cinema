@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Movie = require('../models/Movie');
+const {isAuthenticated} = require('../middleware/auth.middleware');
+const {upload} = require('../middleware/file.middleware');
+const imageToUri = require('image-to-uri');
+const fs = require("fs");;
 
 router.get('/', async (req, res, next) => {
     try {
@@ -70,16 +74,19 @@ router.get('/year/2010', async (req, res, next) => {
     }
 })
 
-router.post('/add-new', async (req, res, next) => {
+router.post('/add-new', [isAuthenticated], upload.single('picture'), async (req, res, next) => {
     try {
+        const moviePicture = req.file.path ? req.file.path : null; //req.file.path;
         console.log(req.body)
         const newMovie = new Movie({
             title: req.body.title,
             director: req.body.director,
             year: req.body.year,
-            genre: req.body.genre
+            genre: req.body.genre,
+            picture: imageToUri(moviePicture)
         });
         const createdMovie = await newMovie.save();
+        await fs.unlinkSync(moviePicture);
 
         console.log(newMovie);
         res.status(201).json(createdMovie)
@@ -89,7 +96,7 @@ router.post('/add-new', async (req, res, next) => {
     }
 })
 
-router.put('/updateById/:id', async(req, res, next) => {
+router.put('/updateById/:id', [isAuthenticated], async(req, res, next) => {
     try {
         const id = req.params.id;
         const movieToModify = new Movie(req.body);
@@ -109,7 +116,7 @@ router.put('/updateById/:id', async(req, res, next) => {
     }
 })
 
-router.delete('/deleteById/:id', async(req, res, next) => {
+router.delete('/deleteById/:id', [isAuthenticated], async(req, res, next) => {
     try {
         const id = req.params.id;
         const deletedMovie = await Movie.findByIdAndDelete(id);
